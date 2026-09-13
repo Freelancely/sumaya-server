@@ -1,0 +1,55 @@
+# Render service definition.
+#
+# The failure this file exists to prevent: Render's default build command is
+# `npm install`, which runs `postinstall` (prisma generate) but never `tsc`.
+# `dist/` is gitignored, so the repo carries no compiled output and the start
+# command died on `Cannot find module '.../dist/server.js'`. The build must
+# compile.
+services:
+  - type: web
+    name: sumaya-server
+    runtime: node
+    plan: free
+    # `npm ci` honours the lockfile; devDependencies (typescript) are needed to
+    # build, so this must not run with --omit=dev.
+    buildCommand: npm ci && npm run build
+    # Migrations before the listener, exactly as the Dockerfile does it:
+    # `migrate deploy` applies only what is pending, so a restart is a no-op.
+    startCommand: npx prisma migrate deploy && npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render injects the port it expects the service to bind; HOST must stay
+      # 0.0.0.0 or the health check cannot reach the process.
+      - key: HOST
+        value: 0.0.0.0
+      # Render terminates TLS in front of the service, so x-forwarded-for is
+      # trustworthy here — and it is the address rate limits are counted against.
+      - key: TRUST_PROXY
+        value: "true"
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
+      # Set in the dashboard (Environment → Secret), not here.
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
