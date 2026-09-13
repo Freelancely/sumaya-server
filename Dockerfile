@@ -1,10 +1,19 @@
 # Build stage: full toolchain, then only what runs is copied forward.
-FROM node:20-bookworm-slim AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-# `prisma generate` runs on install and needs the schema, so both land before it.
+# The slim images ship without OpenSSL, and Prisma probes for libssl at startup
+# to pick its engine build. Without it every command prints a detection failure
+# and falls back to a guess.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates   && rm -rf /var/lib/apt/lists/*
+
+# `prisma generate` runs on install and needs the schema, so both land before
+# it — as does the postinstall build script, which npm invokes by path. It
+# finds no `src` at this point and skips, which is what we want: the layer
+# above changes only when dependencies do.
 COPY package*.json prisma.config.ts ./
 COPY prisma ./prisma
+COPY scripts/postinstall-build.mjs ./scripts/
 RUN npm ci
 
 COPY tsconfig*.json ./
@@ -15,9 +24,13 @@ RUN npm run build
 # it is a runtime dependency, because migrations run when the container starts.
 RUN npm prune --omit=dev
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+
+# `prisma migrate deploy` runs here on every start, so the runtime needs OpenSSL
+# too — not just the build stage.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

@@ -10,9 +10,10 @@ services:
     name: sumaya-server
     runtime: node
     plan: free
-    # `npm ci` honours the lockfile; devDependencies (typescript) are needed to
-    # build, so this must not run with --omit=dev.
-    buildCommand: npm ci && npm run build
+    # `postinstall` compiles the server, so installing is the whole build —
+    # which is also what makes the dashboard's default `npm install` correct.
+    # devDependencies (typescript) are required; do not run this with --omit=dev.
+    buildCommand: npm ci
     # Migrations before the listener, exactly as the Dockerfile does it:
     # `migrate deploy` applies only what is pending, so a restart is a no-op.
     startCommand: npx prisma migrate deploy && npm run start
@@ -48,6 +49,10 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: MAIL_FROM
+        sync: false
+      # Where public enquiries and newsletter signups land. A person's inbox,
+      # so it is expected to change without a redeploy of anything else.
+      - key: CONTACT_TO
         sync: false
       - key: APP_URL
         sync: false

@@ -19,7 +19,15 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { ErrorCode, UnauthorizedError } from "../http/errors.js";
 
-const ISSUER = "sumaya-atelier";
+/**
+ * Renamed from "sumaya-atelier" when the house dropped that wording. Both are
+ * checked on verification, so access tokens minted under the old name keep
+ * working until they expire; only `ISSUER` is ever signed with. Once no token
+ * predating the rename can still be alive — access tokens last 15 minutes —
+ * `LEGACY_ISSUERS` can go.
+ */
+const ISSUER = "sm-fine-jewellery";
+const LEGACY_ISSUERS = ["sumaya-atelier"];
 const AUDIENCE = "sumaya-admin";
 
 export interface AccessTokenClaims {
@@ -48,7 +56,7 @@ export function verifyAccessToken(token: string): AccessTokenClaims {
     // or for RS256 with a key of their choosing.
     const payload = jwt.verify(token, env.JWT_SECRET, {
       algorithms: ["HS256"],
-      issuer: ISSUER,
+      issuer: [ISSUER, ...LEGACY_ISSUERS],
       audience: AUDIENCE,
     });
 

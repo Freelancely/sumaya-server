@@ -102,6 +102,19 @@ Identical to the serverless API, under `/api`.
 | PATCH | `/api/pieces/:id/images/reorder` | bearer | Send the **whole** gallery, not a delta |
 | DELETE | `/api/images/:imageId` | bearer | Removes the row and the stored asset |
 | GET | `/api/categories` | optional | `{ id, label, singular, count }` |
+| GET | `/api/stones` | optional | Filter facet: `{ slug, name, count }`, `?category=` scopes the counts |
+
+### Contact
+
+Both are public, unauthenticated, and answer `202` for anything they accepted —
+including a submission dropped as spam, so a bot learns nothing from the reply.
+Each carries a honeypot field (`website`) and is rate limited per IP *and* per
+address. Mail goes to `CONTACT_TO` with the visitor set as the reply-to.
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `/api/contact` | none | Enquiry form: `name`, `email`, `message`, optional `phone` and `subject` |
+| POST | `/api/contact/newsletter` | none | Newsletter signup: `email`. Forwarded, not stored |
 
 ### Operations
 
@@ -188,6 +201,7 @@ sent mail in an outbox the tests read the way a recipient would.
 | `tests/pieces.test.ts` | Public vs admin shapes, filters, paging, slugs, the featured-piece rule, soft delete and purge |
 | `tests/images.test.ts` | Upload, magic-byte rejection, reorder, delete and gap closing, asset cleanup |
 | `tests/categories.test.ts` | Taxonomy and live counts |
+| `tests/stones.test.ts` | Stone facet, category scoping, and the slug round trip into `?stone=` |
 | `tests/rate-limit.test.ts` | Windows, per-identifier counting, `Retry-After`, pruning, a real 429 |
 | `tests/unit.test.ts` | Passwords, tokens, image sniffing, slugs, the environment contract |
 

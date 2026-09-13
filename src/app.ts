@@ -15,9 +15,11 @@ import { env } from "./config/env.js";
 import { attachRequestContext, cors, errorHandler, notFound, securityHeaders } from "./http/middleware.js";
 import { authRouter } from "./routes/auth.js";
 import { categoriesRouter } from "./routes/categories.js";
+import { contactRouter } from "./routes/contact.js";
 import { healthRouter } from "./routes/health.js";
 import { imagesRouter } from "./routes/images.js";
 import { piecesRouter } from "./routes/pieces.js";
+import { stonesRouter } from "./routes/stones.js";
 
 /** Bounds a JSON body. Uploads are multipart and bounded separately, in busboy. */
 const JSON_BODY_LIMIT = "256kb";
@@ -50,6 +52,8 @@ export function createApp(): Express {
   api.use("/pieces", piecesRouter);
   api.use("/images", imagesRouter);
   api.use("/categories", categoriesRouter);
+  api.use("/stones", stonesRouter);
+  api.use("/contact", contactRouter);
   app.use("/api", api);
 
   app.use(notFound);

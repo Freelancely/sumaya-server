@@ -129,6 +129,41 @@ export const listPiecesQuerySchema = z.object({
   perPage: z.coerce.number().int().min(1).max(100).default(24),
 });
 
+/**
+ * `GET /api/stones`. Scoping to a category is the whole of it: the collection
+ * page asks for the stones of the tab it is showing.
+ */
+export const listStonesQuerySchema = z.object({
+  category: categoryIdSchema.optional(),
+});
+
+/* ── Public contact ───────────────────────────────────────────── */
+
+/**
+ * The enquiry form on the public site.
+ *
+ * `website` is a honeypot: the field is rendered but hidden from people, so
+ * anything arriving with it filled in was submitted by a bot. It is accepted
+ * rather than rejected by the schema — the route decides what to do with it,
+ * and answering a bot with a validation error only tells it which field to
+ * stop filling in.
+ */
+export const contactSchema = z.object({
+  name: z.string().trim().min(2, "Enter your name.").max(80),
+  email: emailSchema,
+  /** Optional and loosely checked: numbers are written a dozen valid ways. */
+  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  subject: z.string().trim().max(120).optional().or(z.literal("")),
+  message: z.string().trim().min(10, "Tell us a little more — at least 10 characters.").max(4000),
+  website: z.string().max(200).optional(),
+});
+
+/** The newsletter form. An address is the whole of it. */
+export const newsletterSchema = z.object({
+  email: emailSchema,
+  website: z.string().max(200).optional(),
+});
+
 export const imageUploadFieldsSchema = z.object({
   kind: imageKindSchema.default("STUDIO"),
   alt: z.string().trim().max(200).optional(),
@@ -156,4 +191,7 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CreatePieceInput = z.infer<typeof createPieceSchema>;
 export type UpdatePieceInput = z.infer<typeof updatePieceSchema>;
 export type ListPiecesQuery = z.infer<typeof listPiecesQuerySchema>;
+export type ListStonesQuery = z.infer<typeof listStonesQuerySchema>;
 export type ReorderImagesInput = z.infer<typeof reorderImagesSchema>;
+export type ContactInput = z.infer<typeof contactSchema>;
+export type NewsletterInput = z.infer<typeof newsletterSchema>;

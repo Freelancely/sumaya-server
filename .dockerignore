@@ -2,6 +2,8 @@ node_modules
 dist
 tests
 scripts
+# postinstall runs this; without it `npm ci` fails inside the image.
+!scripts/postinstall-build.mjs
 .env
 .env.*
 !.env.example

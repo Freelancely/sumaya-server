@@ -23,6 +23,9 @@ process.env.REFRESH_TOKEN_TTL = "2592000";
 // tests read, so nothing here needs a Cloudinary or Resend account.
 process.env.STORAGE_DRIVER = "memory";
 process.env.MAIL_DRIVER = "memory";
+// Where the contact endpoints deliver. Named here so a test asserts against a
+// fixed address rather than whichever inbox the deployment happens to use.
+process.env.CONTACT_TO = "atelier-inbox@example.com";
 
 process.env.APP_URL = "http://localhost:8080";
 process.env.CORS_ORIGINS = "http://localhost:8080,http://localhost:3000";

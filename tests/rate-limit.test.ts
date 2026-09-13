@@ -122,6 +122,23 @@ describe("the limits the endpoints declare", () => {
     expect(lastStatus).toBe(429);
   });
 
+  it("throttles the public enquiry form, per address", async () => {
+    const enquiry = {
+      name: "Dana Al-Sabah",
+      email: "dana@example.com",
+      message: "I would like to talk about reworking an heirloom ring.",
+    };
+
+    // The per-address window is the tighter of the two the route declares.
+    for (let attempt = 0; attempt < RateLimits.contactByEmail.limit; attempt += 1) {
+      await request(app).post("/api/contact").send(enquiry).expect(202);
+    }
+
+    const limited = await request(app).post("/api/contact").send(enquiry).expect(429);
+    expect(limited.body.error.code).toBe("RATE_LIMITED");
+    expect(limited.headers["retry-after"]).toBeTruthy();
+  });
+
   it("leaves the public catalogue well clear of its limit for ordinary use", async () => {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await request(app).get("/api/categories").expect(200);

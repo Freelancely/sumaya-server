@@ -93,4 +93,8 @@ export const RateLimits = {
   mutation: { name: "admin:mutation", limit: 60, windowSeconds: 60 },
   upload: { name: "admin:upload", limit: 30, windowSeconds: 60 },
   publicRead: { name: "public:read", limit: 300, windowSeconds: 60 },
+  // The public forms. Deliberately tight: a legitimate visitor sends one
+  // enquiry, and every message that gets through lands in a person's inbox.
+  contactByIp: { name: "public:contact:ip", limit: 5, windowSeconds: 60 * 60 },
+  contactByEmail: { name: "public:contact:email", limit: 3, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, RateLimitRule>;

@@ -36,6 +36,7 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      CONTACT_TO: ${CONTACT_TO:-rishanchhunju@gmail.com}
     ports:
       - "4000:4000"
 

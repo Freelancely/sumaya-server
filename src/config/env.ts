@@ -53,7 +53,13 @@ const schema = z
     /** `console` prints the message; `memory` also keeps it for assertions. */
     MAIL_DRIVER: z.enum(["resend", "console", "memory"]).optional(),
     RESEND_API_KEY: z.string().optional(),
-    MAIL_FROM: z.string().default("Sumaya Atelier <no-reply@sumayahmurafie.com>"),
+    MAIL_FROM: z.string().default("SM Fine Jewellery <no-reply@sumayahmurafie.com>"),
+    /**
+     * Where public enquiries and newsletter signups are delivered. Separate
+     * from MAIL_FROM: that is the sending identity on a verified domain, this
+     * is a person's inbox and is expected to change.
+     */
+    CONTACT_TO: z.string().email().default("smarafie83@gmail.com"),
 
     /** Public origin of the SPA; reset links are built from it. */
     APP_URL: z.string().url().default("http://localhost:8080"),

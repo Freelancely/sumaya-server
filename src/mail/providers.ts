@@ -24,6 +24,7 @@ export class ResendMailer implements Mailer {
       from: this.from,
       to: message.to,
       subject: message.subject,
+      replyTo: message.replyTo,
       html: message.html,
       text: message.text,
     });
@@ -41,6 +42,7 @@ export class ConsoleMailer implements Mailer {
     logger.info("Email (not sent — console mailer)", {
       to: message.to,
       subject: message.subject,
+      replyTo: message.replyTo,
       text: message.text,
     });
   }
