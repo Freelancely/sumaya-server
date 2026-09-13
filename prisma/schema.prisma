@@ -1,0 +1,218 @@
+// Sumaya Atelier — content + admin schema.
+//
+// The public site is a record of past bespoke commissions: nothing is priced or
+// for sale, so there is no sku/stock/price anywhere here. A `Piece` is one
+// commission; its photography is an ordered `PieceImage` relation split into
+// studio and model shots, which is the normalised form of the `studio[]` /
+// `model[]` arrays the frontend has always consumed.
+
+generator client {
+  provider = "prisma-client"
+  // Prisma 7 generates into the project rather than node_modules, so the client
+  // is versioned with the code that uses it. ESM output matches the API's
+  // NodeNext module resolution.
+  output       = "../src/db/generated"
+  moduleFormat = "esm"
+  runtime      = "nodejs"
+}
+
+// Prisma 7 keeps connection URLs out of the schema: migrations read theirs from
+// `prisma.config.ts`, and the runtime client gets its connection from the Neon
+// pool adapter in `src/db/prisma.ts`.
+datasource db {
+  provider = "postgresql"
+}
+
+/* ── Admin & auth ─────────────────────────────────────────────── */
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+}
+
+model AdminUser {
+  id       String  @id @default(uuid()) @db.Uuid
+  /// Always stored lowercased and trimmed; lookups normalise the same way.
+  email    String  @unique
+  password String  @map("password_hash")
+  name     String?
+  role     Role    @default(SUPERADMIN)
+  isActive Boolean @default(true) @map("is_active")
+
+  /// Consecutive failed logins; reset to 0 on success.
+  failedLoginCount Int       @default(0) @map("failed_login_count")
+  lockedUntil      DateTime? @map("locked_until")
+
+  /// Every access token carries this as `pwdAt`. Bumping it on a password
+  /// change or reset invalidates outstanding tokens without a denylist.
+  passwordChangedAt DateTime  @default(now()) @map("password_changed_at")
+  lastLoginAt       DateTime? @map("last_login_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  sessions    Session[]
+  resetTokens PasswordResetToken[]
+
+  @@map("admin_users")
+}
+
+/// One live refresh-token lineage. Rotated on every use; replaying a rotated
+/// token revokes the whole `familyId` (token-theft detection).
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// sha256 of the refresh token — the raw value is never persisted.
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id") @db.Uuid
+  userAgent String?   @map("user_agent")
+  ip        String?
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// Single-use password reset grant. Only the sha256 is stored; the raw token
+/// exists solely inside the email we send.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+/* ── Catalogue ────────────────────────────────────────────────── */
+
+/// Taxonomy rows, keyed by the slug the frontend already uses ("rings", ...).
+/// `singular` differs from `label` for some categories ("Necklaces"/"Necklace")
+/// and both are shown in the UI, so both are stored.
+model Category {
+  id       String  @id
+  label    String
+  singular String
+  position Int     @default(0)
+  isActive Boolean @default(true) @map("is_active")
+
+  pieces Piece[]
+
+  @@map("categories")
+}
+
+enum PieceStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Piece {
+  id         String      @id @default(uuid()) @db.Uuid
+  /// Human-readable public key ("ring-001"). Routes accept either this or the uuid.
+  slug       String      @unique
+  name       String
+  categoryId String      @map("category_id")
+  metal      String
+  story      String
+  /// At most one featured piece per category; enforced in a transaction.
+  featured   Boolean     @default(false)
+  status     PieceStatus @default(PUBLISHED)
+  /// Manual display order within a category; ties break on createdAt.
+  position   Int         @default(0)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  /// Soft delete — public reads filter on `deletedAt: null`.
+  deletedAt DateTime? @map("deleted_at")
+
+  category Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  stones   PieceStone[]
+  images   PieceImage[]
+
+  @@index([categoryId, status, deletedAt])
+  @@index([status, deletedAt, position])
+  @@index([featured])
+  @@map("pieces")
+}
+
+/// Normalised so the collection page's stone filter chips are one cheap query
+/// instead of a scan over every piece's string array.
+model Stone {
+  id   String @id @default(uuid()) @db.Uuid
+  /// Display form, e.g. "Watermelon tourmaline".
+  name String @unique
+  /// Case/space-insensitive identity key, e.g. "watermelon-tourmaline".
+  slug String @unique
+
+  pieces PieceStone[]
+
+  @@map("stones")
+}
+
+model PieceStone {
+  pieceId  String @map("piece_id") @db.Uuid
+  stoneId  String @map("stone_id") @db.Uuid
+  position Int    @default(0)
+
+  piece Piece @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  stone Stone @relation(fields: [stoneId], references: [id], onDelete: Cascade)
+
+  @@id([pieceId, stoneId])
+  @@index([stoneId])
+  @@map("piece_stones")
+}
+
+enum ImageKind {
+  STUDIO
+  MODEL
+}
+
+model PieceImage {
+  id       String    @id @default(uuid()) @db.Uuid
+  pieceId  String    @map("piece_id") @db.Uuid
+  kind     ImageKind
+  /// Dense 0..n-1 within (pieceId, kind). Position 0 of each kind is the card
+  /// thumbnail and the hover image respectively.
+  position Int
+
+  /// Cloudinary public_id — required to destroy the asset on delete.
+  publicId String @unique @map("public_id")
+  url      String
+  thumbUrl String @map("thumb_url")
+  width    Int
+  height   Int
+  alt      String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  piece Piece @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+
+  @@index([pieceId, kind, position])
+  @@map("piece_images")
+}
+
+/* ── Infrastructure ───────────────────────────────────────────── */
+
+/// Fixed-window rate limit counters. Serverless invocations share no memory,
+/// so the window has to live somewhere durable.
+model RateLimit {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("rate_limits")
+}

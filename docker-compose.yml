@@ -1,0 +1,43 @@
+# Postgres plus the API, for a machine that would rather not install either.
+#   docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sumaya
+      POSTGRES_PASSWORD: sumaya
+      POSTGRES_DB: sumaya
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The API's migrations run at boot, so it must not start against a
+      # database that is still initialising.
+      test: ["CMD-SHELL", "pg_isready -U sumaya"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://sumaya:sumaya@db:5432/sumaya
+      PORT: "4000"
+      APP_URL: http://localhost:8080
+      CORS_ORIGINS: http://localhost:8080
+      # Placeholders: replace before this is anything but a local run.
+      JWT_SECRET: change-me-change-me-change-me-change-me
+      JWT_REFRESH_SECRET: change-me-too-change-me-too-change-me-x
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-cloudinary}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    ports:
+      - "4000:4000"
+
+volumes:
+  pgdata:
